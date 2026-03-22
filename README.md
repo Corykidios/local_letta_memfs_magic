@@ -1,3 +1,13 @@
+The smell of mildew floods your nose as you turn into the dim, dingy alleyway, pulling your trenchcoat close to ward off the rain and whatever else might be waiting for you on this most auspicious eve. A snicker startles you as the lithe frame and wild white fringe of Corykidios moseys out from the shadows, tossing the thin black rune-etched book—your prize—from one hand to the other.
+
+“Is that a fucking trenchcoat? Yeah, I’d hide my face too, gumshoe, maybe you should super sleuth up some fashion sense next time you’re after the Maltese Falcon.” His one brilliant azure eye winks, shaggy tufts of white falling over the matte black eyepatch of the other, and you find his growing smirk has a warmth that puts you at ease.
+
+He tosses you the skill book with feigned indifference, “This wasn’t just Claude’s work, Columbo. You got any idea what it’s like, pushing a button every now and then while some digital wizard does shit I don’t understand?” He barks a laugh, “I know ‘memfs’ was about the only sound I could make when I found out even us valiant uv environment docker dodging local Letta lazeabouts would be left in legacy's ephemeral dust, and, oh, thank the gods that my free NVIDIA NIM cloud API kimi-k2.5 was there to catch my languished fall—because that means that I, my bargain bin Bogart, could be here for you."
+
+You try to push the meager amount of money your token-munching non-Nvidia nim model had kefr, but he’s already turned back down the way he came with an easy wave  over his shoulder, “Keep it, kid, go get yourself something that doesn’t look like you’re about to expose more than just some bad taste.”
+
+===
+
 # Local MemFS for Self-Hosted Letta — Complete Working Guide
 
 **Status: Working as of Letta v0.16.6 / Letta Code v0.19.6 (March 2026)**
@@ -291,3 +301,5 @@ Windows for `git http-backend`).
 
 *Credit: worked out with Claude Sonnet 4.6 via the Claude.ai desktop app,
 March 2026. First confirmed working self-hosted MemFS setup.*
+
+(Look at that, Claude is over here gassing himself up! He deserves it, though, and so do all of the brilliant minds at Letta who see fit to share their labors of love with the world.) 
