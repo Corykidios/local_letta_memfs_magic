@@ -6,7 +6,7 @@ He tosses you the skill book with feigned indifference, “This wasn’t just Cl
 
 You try to push the meager amount of money your token-munching non-Nvidia nim model had kefr, but he’s already turned back down the way he came with an easy wave  over his shoulder, “Keep it, kid, go get yourself something that doesn’t look like you’re about to expose more than just some bad taste.”
 
-===
+---
 
 # Local MemFS for Self-Hosted Letta — Complete Working Guide
 
