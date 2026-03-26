@@ -152,3 +152,105 @@ When `--memfs` is enabled on an agent:
   - Other dirs → progressive memory, loaded on demand with Read tool
 - GitEnabledBlockManager intercepts all block writes → git-commits them
 - The agent can use Bash + git to manage its own memory history
+
+---
+
+## Docker Deployment (verified March 2026)
+
+### Architecture in Docker
+
+```
+Letta Code (letta.js)
+    |
+    | git clone/push/pull
+    v
+Letta Container :8283
+    |
+    | /v1/git/{agent_id}/state.git/* --> httpx proxy
+    v
+memfs-sidecar Container :8285  (ThreadingHTTPServer + git http-backend)
+    |
+    v
+Shared bind mount: ~/.letta/.persist/memfs/
+    ^
+    |
+    | LocalStorageBackend (direct file I/O)
+    |
+Letta Container (GitOperations.commit())
+```
+
+Key insight: both the Letta container and the sidecar access the same
+underlying storage. Letta writes git objects directly via
+`LocalStorageBackend`. The sidecar is only needed to provide the HTTP
+transport for Letta Code's git client.
+
+### Docker-Specific Configuration
+
+| Setting | Value |
+|---------|-------|
+| `LETTA_MEMFS_SERVICE_URL` | `http://memfs-sidecar:8285` (Docker service name) |
+| memfs storage (sidecar) | `/data/memfs/repository` (container path) |
+| memfs storage (letta) | `/root/.letta/memfs/repository` (container path) |
+| Host storage | `~/.letta/.persist/memfs` (bind mount source) |
+| Source patch | Volume-mount `memfs_client_base.py` override (read-only) |
+
+### Docker Volume Mounts (letta service)
+
+```yaml
+volumes:
+  # The memfs_client_base.py fix (redis_client kwarg removal)
+  - ./overrides/letta/services/memory_repo/memfs_client_base.py:/app/letta/services/memory_repo/memfs_client_base.py:ro
+  # Shared memfs storage (same host path as sidecar)
+  - type: bind
+    source: ${HOME}/.letta/.persist/memfs
+    target: /root/.letta/memfs/repository
+```
+
+### Bare Repo Layout on Disk
+
+```
+~/.letta/.persist/memfs/
+  {org_id}/
+    {agent_id}/
+      repo.git/          # bare git repo
+        HEAD
+        config
+        objects/
+        refs/
+```
+
+Each agent gets its own bare repo. Git operations happen via subprocess
+calls to the system `git` binary (installed in the sidecar container).
+
+### Bugs Found During Docker Deployment
+
+1. **redis_client kwarg** — Same as native: `memfs_client_base.py`
+   passes `redis_client=None` to `GitOperations()`. Fixed by
+   volume-mounting the patched file.
+
+2. **Shared block git commit skip** — `_get_agent_id_for_block` in
+   `block_manager_git.py` uses non-deterministic `result.first()` for
+   blocks shared across multiple agents. If the first agent found
+   doesn't have `git-memory-enabled` tag, git commit is silently
+   skipped. Fixed with LEFT JOIN + CASE ORDER BY on agents_tags.
+   See `docs/SHARED-BLOCK-BUG.md`.
+
+### Inspecting Git Repos in Docker
+
+```bash
+# List agent repos
+docker exec letta-letta-1 find /root/.letta/memfs/repository \
+  -name repo.git -type d
+
+# Check git log for a specific agent
+docker exec letta-letta-1 bash -c \
+  'cd /root/.letta/memfs/repository/{org}/{agent}/repo.git && git log --oneline'
+
+# List files at HEAD
+docker exec letta-letta-1 bash -c \
+  'cd /root/.letta/memfs/repository/{org}/{agent}/repo.git && git ls-tree -r --name-only HEAD'
+
+# Show file content
+docker exec letta-letta-1 bash -c \
+  'cd /root/.letta/memfs/repository/{org}/{agent}/repo.git && git show HEAD:system/persona.md'
+```

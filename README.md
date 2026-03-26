@@ -286,20 +286,100 @@ Linux/Mac should work identically — the only Windows-specific detail is
 forward-slashing `GIT_PROJECT_ROOT` (forward slashes required even on
 Windows for `git http-backend`).
 
+### Docker (Linux)
+
+- Letta v0.16.6 Docker image (`ghcr.io/oculairmedia/letta:latest`)
+- memfs-sidecar built from `docker/Dockerfile` (Python 3.11 + git)
+- PostgreSQL 15 (pgvector) + Redis 7 (Alpine)
+- Verified: git commits created on block updates, history API works,
+  shared-block fix deployed and confirmed
+
+---
+
+## Docker Deployment
+
+**Status: Working as of March 2026 — verified on Linux (Docker Compose)**
+
+The sidecar also runs as a Docker container alongside the Letta server.
+See [`docker/`](docker/) for the container image and
+[`docs/DOCKER-DEPLOYMENT.md`](docs/DOCKER-DEPLOYMENT.md) for the full guide.
+
+Quick overview of the Docker Compose setup:
+
+```yaml
+services:
+  memfs-sidecar:
+    build: ./local_letta_memfs_magic/docker
+    volumes:
+      - type: bind
+        source: ${HOME}/.letta/.persist/memfs
+        target: /data/memfs/repository
+    environment:
+      - MEMFS_PORT=8285
+
+  letta:
+    depends_on:
+      memfs-sidecar:
+        condition: service_healthy
+    environment:
+      - LETTA_MEMFS_SERVICE_URL=http://memfs-sidecar:8285
+    volumes:
+      # Override memfs_client_base.py to fix redis_client kwarg
+      - ./overrides/letta/services/memory_repo/memfs_client_base.py:/app/letta/services/memory_repo/memfs_client_base.py:ro
+      # Mount the same memfs storage directory
+      - type: bind
+        source: ${HOME}/.letta/.persist/memfs
+        target: /root/.letta/memfs/repository
+```
+
+Both containers share the same bind-mounted directory for git repository
+storage. The Letta container writes via `LocalStorageBackend`; the sidecar
+provides the git HTTP transport for Letta Code's `/v1/git/` proxy endpoint.
+
+### Key Differences from Native Install
+
+| Aspect | Native (pip/uv) | Docker |
+|--------|-----------------|--------|
+| Sidecar address | `http://localhost:8285` | `http://memfs-sidecar:8285` |
+| Config method | `~/.letta/conf.yaml` | `LETTA_MEMFS_SERVICE_URL` env var |
+| Source patch | Edit `memfs_client_base.py` in-place | Volume-mount the patched file |
+| Storage path | `~/.letta/memfs/` | Bind mount to host directory |
+| `LETTA_MEMFS_LOCAL=1` | Required (Letta Code client bypass) | Not needed (server-side only) |
+
+---
+
+## Known Bugs
+
+### Shared Block Git Commit Skip (fixed)
+
+When a memory block is shared across multiple agents (e.g. `system/human`
+attached to 50+ agents), `_get_agent_id_for_block` in
+`block_manager_git.py` returns a non-deterministic agent. If that agent
+doesn't have the `git-memory-enabled` tag, the update silently skips the
+git commit and falls through to the Postgres-only path.
+
+**Fix:** Use `LEFT JOIN + CASE ORDER BY` on the `agents_tags` table to
+always return git-enabled agents first. Applied in
+[oculairmedia/letta#fix/shared-block-git-commit](https://github.com/oculairmedia/letta/tree/fix/shared-block-git-commit).
+
+See [`docs/SHARED-BLOCK-BUG.md`](docs/SHARED-BLOCK-BUG.md) for full
+analysis and the exact code change.
+
 ---
 
 ## Known Limitations
 
-- The sidecar is HTTP only (no TLS). Fine for localhost; don't expose it.
+- The sidecar is HTTP only (no TLS). Fine for localhost and Docker
+  internal networks; don't expose it to the internet.
 - Multi-machine portability: the bare repos live at `~/.letta/memfs/` on
   one machine. Moving machines means copying that directory or pointing
   `MEMFS_BASE` at a network share.
-- Docker Letta: not tested. The conf.yaml and sidecar approach should work
-  the same way, but the sidecar needs to be accessible from inside the container.
 
 ---
 
 *Credit: worked out with Claude Sonnet 4.6 via the Claude.ai desktop app,
 March 2026. First confirmed working self-hosted MemFS setup.*
+
+*Docker deployment verified by the oculairmedia team, also March 2026.*
 
 (Look at that, Claude is over here gassing himself up! He deserves it, though, and so do all of the brilliant minds at Letta who see fit to share their labors of love with the world.) 

@@ -1,0 +1,112 @@
+# Docker Compose example for Letta + MemFS sidecar
+#
+# This is a minimal working configuration showing how to add the memfs
+# sidecar to a standard Letta Docker Compose setup.
+#
+# Usage:
+#   1. Clone local_letta_memfs_magic alongside your Letta stack
+#   2. Create storage directory: mkdir -p ~/.letta/.persist/memfs
+#   3. Copy/adapt these service definitions into your compose.yaml
+#   4. Override memfs_client_base.py (see docs/DOCKER-DEPLOYMENT.md)
+#   5. docker compose up -d
+#
+# See docs/DOCKER-DEPLOYMENT.md for the full guide.
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - letta-network
+
+  postgres:
+    image: pgvector/pgvector:pg15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: letta
+      POSTGRES_PASSWORD: letta
+      POSTGRES_DB: letta
+    volumes:
+      - type: bind
+        source: ${HOME}/.letta/.persist/pgdata
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U letta -d letta"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - letta-network
+
+  memfs-sidecar:
+    build:
+      context: ./local_letta_memfs_magic/docker
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - MEMFS_PORT=8285
+      - MEMFS_BASE_PATH=/data/memfs/repository
+      - MEMFS_DEFAULT_ORG=default-org
+    volumes:
+      - type: bind
+        source: ${HOME}/.letta/.persist/memfs
+        target: /data/memfs/repository
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    networks:
+      - letta-network
+
+  letta:
+    image: ghcr.io/letta-ai/letta:latest  # or your fork
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      memfs-sidecar:
+        condition: service_healthy
+    ports:
+      - "8283:8283"
+    environment:
+      - LETTA_SERVER_PASSWORD=your-password-here
+      - DATABASE_URL=postgresql://letta:letta@postgres:5432/letta
+      - LETTA_PG_URI=postgresql://letta:letta@postgres:5432/letta
+      - LETTA_PG_DB=letta
+      - LETTA_PG_USER=letta
+      - LETTA_PG_PASSWORD=letta
+      - LETTA_PG_HOST=postgres
+      - LETTA_PG_PORT=5432
+      - LETTA_REDIS_HOST=redis
+      - LETTA_REDIS_PORT=6379
+      # Point Letta's /v1/git/ proxy at the memfs sidecar
+      - LETTA_MEMFS_SERVICE_URL=http://memfs-sidecar:8285
+      # Add your API keys here
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsSL http://localhost:8283/v1/health | grep -q ok"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      # Override memfs_client_base.py to fix redis_client kwarg mismatch
+      - ./overrides/letta/services/memory_repo/memfs_client_base.py:/app/letta/services/memory_repo/memfs_client_base.py:ro
+      # Mount same memfs storage as sidecar (Letta writes directly via LocalStorageBackend)
+      - type: bind
+        source: ${HOME}/.letta/.persist/memfs
+        target: /root/.letta/memfs/repository
+    networks:
+      - letta-network
+
+networks:
+  letta-network:
+    driver: bridge
