@@ -180,9 +180,45 @@ python scripts/check_settings.py
 
 ---
 
+---
+
+## Docker Deployment
+
+For Docker Compose environments, the sidecar runs as a separate
+container. Key differences from native:
+
+| Aspect | Native | Docker |
+|--------|--------|--------|
+| Sidecar address | `localhost:8285` | `memfs-sidecar:8285` |
+| Config method | `~/.letta/conf.yaml` | `LETTA_MEMFS_SERVICE_URL` env var |
+| Source patch | Edit file in-place | Volume-mount override (`:ro`) |
+| `LETTA_MEMFS_LOCAL=1` | Required | Not needed server-side |
+
+### Docker-Specific Errors
+
+**Block updates show "(postgres-only path)" for shared blocks:**
+The `_get_agent_id_for_block` method returns a non-deterministic agent
+for blocks shared across multiple agents. If that agent lacks the
+`git-memory-enabled` tag, git commits are silently skipped. Fix with
+the LEFT JOIN + CASE ORDER BY patch in `block_manager_git.py`. See
+`docs/SHARED-BLOCK-BUG.md`.
+
+**Sidecar healthy but no git commits happen:**
+Verify both containers mount the same host directory:
+- Sidecar: `~/.letta/.persist/memfs` → `/data/memfs/repository`
+- Letta: `~/.letta/.persist/memfs` → `/root/.letta/memfs/repository`
+
+**"MemfsClient initialized" missing from Letta startup:**
+The `memfs_client_base.py` override isn't mounted. Check your volume
+mount is pointing to the correct file path.
+
+---
+
 ## Reference Files
 
 - `references/architecture.md` — Deep technical internals, all bugs found
   during original setup, how to extend the sidecar
 - `references/troubleshooting.md` — Full error table with causes and fixes
 - `references/git-memfs-server.py` — The sidecar server source
+- `docs/DOCKER-DEPLOYMENT.md` — Complete Docker Compose deployment guide
+- `docs/SHARED-BLOCK-BUG.md` — Shared block git commit skip bug analysis
