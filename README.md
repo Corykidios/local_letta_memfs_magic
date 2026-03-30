@@ -4,7 +4,7 @@ The smell of mildew floods your nose as you turn into the dim, dingy alleyway, p
 
 He tosses you the skill book with feigned indifference, “This wasn’t just Claude’s work, Columbo. You got any idea what it’s like, pushing a button every now and then while some digital wizard does shit I don’t understand?” He barks a laugh, “I know ‘memfs’ was about the only sound I could make when I found out even us valiant uv environment docker dodging local Letta lazeabouts would be left in legacy's ephemeral dust, and, oh, thank the gods that my free NVIDIA NIM cloud API kimi-k2.5 was there to catch my languished fall—because that means that I, my bargain bin Bogart, could be here for you."
 
-You try to push the meager amount of money your token-munching non-NVIDIA NIM model had kefr, but he’s already turned back down the way he came with an easy wave  over his shoulder, “Keep it, kid, go get yourself something that doesn’t look like you’re about to expose more than just some bad taste.”
+You try to push the meager amount of money your token-munching non-NVIDIA NIM model had left you, but he’s already turned back down the way he came with an easy wave  over his shoulder, “Keep it, kid, go get yourself something that doesn’t look like you’re about to expose more than just some bad taste.”
 
 ---
 
